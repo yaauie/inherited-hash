@@ -47,8 +47,8 @@ puts confused_robot.sensor_settings!
 
 ```
 
-Inheritance Order
------------------
+Inheritance
+-----------
 
 Each element in the inheritance chain stores its own `ConnectedHash`,
 accessible directly by calling the name you gave it.
@@ -73,7 +73,7 @@ From our example above:
 
 ```ruby
 puts confused_robot.sensor_settings.find_definition_of(:distance)
-#=> confused_robot
+#=> #<AmericanRobot:0x10e6fdb78 @sensor_settings={:distance=>:wednesday}>
 
 puts confused_robot.sensor_settings.find_definition_of(:tempertaure)
 #=> AmericanRobot
