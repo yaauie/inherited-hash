@@ -1,0 +1,108 @@
+InheritedHash
+=============
+
+This module lets you specify a hash that is inherited by subclasses and
+instances of any class that it extends.
+
+It's best explained by example:
+
+```ruby
+class Robot
+  extend InheritedHash
+  inherited_hash_accessor :sensor_settings
+
+  sensor_settings= {
+    :temperature  => :kelvin,
+    :distance     => :metric,
+    :pressure     => :atmosphere
+  }
+  # ...
+end
+
+class EuropeanRobot < Robot
+  sensor_settings[:temperature] = :centigrade
+  # ...
+end
+
+class AmericanRobot < Robot
+  sensor_settings = {
+    :tempertaure  => :fahrenheight,
+    :distance     => :imperial
+  }
+  # ...
+end
+
+confused_robot = AmericanRobot.new
+confused_robot.sensor_settings[:distance] = :wednesday
+
+# get the hash for this instance.
+puts confused_robot.sensor_settings
+# => {:distance => :wednesday}
+
+# get the hash built using inheritance.
+# note how the result in our example contains 
+# elements from each layer of inheritance
+puts confused_robot.sensor_settings!
+# => {:distance => :wednesday, :temperature => :fahrenheight, :pressure => :atmosphere}
+
+```
+
+Inheritance Order
+-----------------
+
+Each element in the inheritance chain stores its own `ConnectedHash`,
+accessible directly by calling the name you gave it.
+
+It can also build a composite `Hash` accounting for inheritance with the bang-
+variant (`foo!` for a hash named `foo`) method, which is built by merging its
+own hash with the hash it inherits, following the inheritance chain.
+
+The composite `Hash` is generated every time you request it, so destructive
+methods like `delete` may not work as intended; they will be destructive to
+your current generated object, but will not affect the source or composite
+hashes generated subsequently.
+
+Finding a Definition
+--------------------
+
+Inspection is simple: Call `find_definition_of(key)` on the `ConnectedHash` to
+find the object (instance, class, or module) whose `ConnectedHash` of the same
+name defines the value that is inherited in the composite.
+
+From our example above:
+
+```ruby
+puts confused_robot.sensor_settings.find_definition_of(:distance)
+#=> confused_robot
+
+puts confused_robot.sensor_settings.find_definition_of(:tempertaure)
+#=> AmericanRobot
+
+puts confused_robot.sensor_settings.find_definition_of(:humidity).inspect
+#=> nil
+```
+
+Global Availability
+-------------------
+
+To include this module into *all* Modules and Classes, simply: 
+
+```ruby
+require 'inherited-hash/global'
+```
+
+Contributing
+============
+
+* Check out the latest code to make sure the feature hasn't been implemented or the bug hasn't been fixed yet
+* Check out the [issue tracker](https://github.com/yaauie/inherited-hash/issues) and [pull requests](https://github.com/yaauie/inherited-hash/pulls) to make sure someone already hasn't requested it and/or contributed it
+* Fork the project
+* Start a feature/bugfix branch
+* Commit and push until you are happy with your contribution
+* Make sure to add tests for it. This is important so I don't break it in a future version unintentionally.
+* Please try not to mess with the Rakefile, version, or history. If you want to have your own version, or is otherwise necessary, that is fine, but please isolate to its own commit so I can cherry-pick around it.
+
+License
+=======
+
+This project is Copyright (c) 2011 by Ryan Biesemeyer and released under an [MIT-style license](https://github.com/yaauie/inherited-hash/blob/master/LICENSE.txt).
