@@ -26,36 +26,21 @@ module InheritedHash
 
   class ConnectedHash < Hash
     def connect(anchor,name)
-      @anchor, @name = anchor, name
+      # connect this object to a class or instance by name
       self
     end
 
-    def verify!
-      raise Exception, "#{self.inspect} must be connected!" unless @anchor and @name
-    end
-
     def to_hash!
-      verify!
-      return @anchor.class.send(%Q{#{@name}!}.to_sym).merge(self.to_hash) unless @anchor.is_a? Module
-      hash = Hash.new
-      @anchor.ancestors.reverse.each do |ancestor|
-        hash.merge!(ancestor.send(@name).to_hash) if ancestor.respond_to?(@name)
-      end
-      hash
+      # get a normal hash, following inheritance tree
     end
 
     def to_hash
-      Hash.new(&default_proc).replace(super)
+      # get a normal hash
     end
 
     def find_definition_of(key)
-      verify!
-      return @anchor if has_key? key
-      return @anchor.class.send(@name).find_definition_of(key) unless @anchor.is_a? Module
-      @anchor.ancestors.reverse.index do |ancestor|
-        next false unless ancestor.respond_to?(@name)
-        return ancestor if ancestor.send(@name).has_key?(key)
-      end
+      # return the object (class or instance) that 
+      # defined the key that results in the current value
     end
   end
 end
