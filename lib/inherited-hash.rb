@@ -1,23 +1,36 @@
 require "inherited-hash/version"
 
 module InheritedHash
-  def inherited_hash_accessor *names
-    names.each do |name|
-      [self,class<<self;self;end].each do |context|
-        context.send(%Q{instance_eval}.to_s) do
-          define_method(name) do
-            storage = %Q{@#{name}}.to_sym
-            unless instance_variable_defined?( storage )
-              instance_variable_set(storage, InheritedHash::ConnectedHash.new.connect(self,name))
+  def self.extended(base)
+    base.send(:include, InstanceMethods)
+    base.extend ClassMethods
+  end
+  
+  module InstanceMethods
+    def inherited_hashes
+      @inherited_hashes ||= Hash.new do |h,name|
+        h[name] = ConnectedHash.new.connect(self,name)
+      end
+    end  
+  end
+
+  module ClassMethods
+    include InstanceMethods
+
+    def inherited_hash_accessor *names
+      names.each do |name|
+        [self,class<<self;self;end].each do |context|
+          context.send(%Q{instance_eval}.to_s) do
+            define_method(name) do
+              inherited_hashes[name]
             end
-            instance_variable_get( storage)
-          end
-          define_method(%Q{#{name}!}.to_sym) do
-            send(name).to_hash!
-          end
-          define_method(%Q{#{name}=}.to_sym) do |hsh|
-            raise ArgumentError, 'Only hashes are allowed' unless hsh.is_a? Hash
-            send(name).replace(hsh)
+            define_method(%Q{#{name}!}.to_sym) do
+              inherited_hashes[name].to_hash!
+            end
+            define_method(%Q{#{name}=}.to_sym) do |hsh|
+              raise ArgumentError, 'Only hashes are allowed' unless hsh.is_a? Hash
+              inherited_hashes[name].replace(hsh)
+            end
           end
         end
       end
@@ -37,11 +50,11 @@ module InheritedHash
     def to_hash!
       verify!
       return @anchor.class.send(%Q{#{@name}!}.to_sym).merge(self.to_hash) unless @anchor.is_a? Module
-      hash = Hash.new
-      @anchor.ancestors.reverse.each do |ancestor|
-        hash.merge!(ancestor.send(@name).to_hash) if ancestor.respond_to?(@name)
-      end
-      hash
+
+      @anchor.ancestors.reverse.map do |ancestor|
+        next nil unless ancestor.respond_to?(:inherited_hashes)
+        ancestor.inherited_hashes[@name].to_hash
+      end.compact.reduce({},:merge)
     end
 
     def to_hash
@@ -53,8 +66,8 @@ module InheritedHash
       return @anchor if has_key? key
       return @anchor.class.send(@name).find_definition_of(key) unless @anchor.is_a? Module
       @anchor.ancestors.reverse.index do |ancestor|
-        next false unless ancestor.respond_to?(@name)
-        return ancestor if ancestor.send(@name).has_key?(key)
+        next nil unless ancestor.respond_to?(:inherited_hashes)
+        return ancestor if ancestor.inherited_hashes[@name].has_key?(key)
       end
     end
   end

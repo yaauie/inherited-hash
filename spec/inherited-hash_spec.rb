@@ -40,6 +40,12 @@ describe 'InheritedHash' do
       @s[:leaf2_shoot1] = Class.new(@s[:leaf2]) do
         foo[:existing_key] = 'changed!'
       end
+      @s[:leaf_with_colliding_module_extended] = Class.new(@s[:leaf1]) do
+        extend Module.new{ def foo() [] end }
+      end
+      @s[:leaf_with_colliding_module_included] = Class.new(@s[:leaf1]) do
+        include Module.new{ def foo() [] end }
+      end
 
       @s
     end
@@ -71,36 +77,45 @@ describe 'InheritedHash' do
         subject.foo![:not_overridden].should == "don't override me"
       end
 
-      context 'instance' do
-        subject do
-          s = @s[:leaf1].new
-          s.foo = {:another_new_key => 'ooh, shiny'}
-          s
-        end
-        it 'should have access to instance-set key' do
-          subject.foo![:another_new_key].should == 'ooh, shiny'
-        end
-        it 'should have access to keys inherited from class' do
-          subject.foo![:existing_key].should == 'changed'
-        end
-        it 'should have access to keys inherited from root' do
-          subject.foo![:not_overridden].should == "don't override me"
-        end
-        it 'should be able to find the definition in the object' do
-          subject.foo.find_definition_of(:another_new_key).should be subject
-        end
-        it 'should be able to find the definition in the class' do
-          subject.foo.find_definition_of(:new_key).should be subject.class
-          subject.foo.find_definition_of(:existing_key).should be subject.class
-        end
-        it 'should be able to find the definition in the root' do
-          subject.foo.find_definition_of(:not_overridden).should be @s[:root]
-        end
-        it 'should not be able to find a definition that does not exist' do
-          subject.foo.find_definition_of(:not_exist).should be_nil
+      [
+        :leaf1,
+        :leaf_with_colliding_module_extended,
+        :leaf_with_colliding_module_included
+      ].compact.each do |node|
+        context "instance of #{node}" do
+          subject do
+            s = @s[node].new
+            s.foo = {:another_new_key => 'ooh, shiny'}
+            s
+          end
+          it 'should have access to instance-set key' do
+            subject.foo![:another_new_key].should == 'ooh, shiny'
+          end
+          it 'should have access to keys inherited from class' do
+            subject.foo![:existing_key].should == 'changed'
+          end
+          it 'should have access to keys inherited from root' do
+            subject.foo![:not_overridden].should == "don't override me"
+          end
+
+          # don't run these on colliding, since colliding by definition breaks this
+          if node == :leaf1
+            it 'should be able to find the definition in the object' do
+              subject.foo.find_definition_of(:another_new_key).should be subject
+            end
+            it 'should be able to find the definition in the class' do
+              subject.foo.find_definition_of(:new_key).should be subject.class
+              subject.foo.find_definition_of(:existing_key).should be subject.class
+            end
+            it 'should be able to find the definition in the root' do
+              subject.foo.find_definition_of(:not_overridden).should be @s[:root]
+            end
+            it 'should not be able to find a definition that does not exist' do
+              subject.foo.find_definition_of(:not_exist).should be_nil
+            end
+          end
         end
       end
     end
-
   end
 end
